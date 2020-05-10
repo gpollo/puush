@@ -1,0 +1,41 @@
+version: '3.4'
+
+services:
+  puush-database:
+    image: postgres:latest
+    container_name: puush-database
+    restart: always
+#    volumes:
+#      - "<path to database files>:/var/lib/postgresql/data"
+    environment:
+      - POSTGRES_USER=puush
+      - POSTGRES_PASSWORD=1234567qw
+      - POSTGRES_DB=puush
+    networks:
+      puush-network:
+        aliases:
+          - puush-database
+
+  puush:
+    image: gpol/puush:latest
+    container_name: puush
+    restart: always
+    depends_on:
+      - puush-database
+#    volumes:
+#      - "<path to saved files>:/srv/puush"
+    environment:
+      - PUUSH_POSTGRESQL_USER=puush
+      - PUUSH_POSTGRESQL_PASS=1234567qw
+      - PUUSH_POSTGRESQL_HOST=puush-database
+      - PUUSH_POSTGRESQL_DATABASE=puush
+      - PUUSH_ROOT_DIRECTORY=/srv/puush
+    ports:
+      - "8080:8080"
+    networks:
+      puush-network:
+        aliases:
+          - puush
+
+networks:
+  puush-network:
