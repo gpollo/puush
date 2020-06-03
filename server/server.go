@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -40,6 +41,7 @@ func Create(db *database.Database) (Server, error) {
 
 	s.muxer.Handle("/api/session", s.log(s.handleSession()))
 	s.muxer.Handle("/api/upload", s.log(s.doesSessionExist(s.handleUpload())))
+	s.muxer.Handle("/api/list", s.log(s.doesSessionExist(s.handleList())))
 	s.muxer.Handle("/", s.log(s.handleFile()))
 
 	return s, nil
@@ -181,6 +183,28 @@ func (s *Server) handleFile() http.Handler {
 		fullname := fmt.Sprintf("%s-%s", fileID, filename)
 		filepath := path.Join(s.root, fullname)
 		http.ServeFile(w, r, filepath)
+	})
+}
+
+func (s *Server) handleList() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.WriteHeader(400)
+			w.Write([]byte("Unsupported method"))
+			return
+		}
+
+		sessionCookie, _ := r.Cookie("SESSION_KEY")
+		files, err := s.db.ListFiles(sessionCookie.Value)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			w.WriteHeader(500)
+			w.Write([]byte("Internal server error"))
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(files)
 	})
 }
 

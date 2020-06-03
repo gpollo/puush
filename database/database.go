@@ -228,3 +228,35 @@ func (db *Database) AddSession() (string, error) {
 
 	return key, nil
 }
+
+type UploadedFile struct {
+	Id    string `json:"id"`
+	Name  string `json:"name"`
+	Since string `json:"since"`
+}
+
+func (db *Database) ListFiles(sessionKey string) ([]UploadedFile, error) {
+	sql := "SELECT id,filename,since FROM File WHERE session = $1;"
+
+	rows, err := db.handle.Query(sql, sessionKey)
+	if err != nil {
+		return []UploadedFile{}, err
+	}
+	defer rows.Close()
+
+	files := []UploadedFile{}
+	for rows.Next() {
+		var id string
+		var name string
+		var since string
+
+		if err := rows.Scan(&id, &name, &since); err != nil {
+			return []UploadedFile{}, err
+		}
+
+		file := UploadedFile{Id: id, Name: name, Since: since}
+		files = append(files, file)
+	}
+
+	return files, nil
+}
