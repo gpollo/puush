@@ -187,10 +187,34 @@ func (db *Database) AddFile(sessionKey, filename string) (string, error) {
 	return fileID, nil
 }
 
-func (db *Database) GetFile(fileID string) (string, error) {
-	sql := "SELECT filename FROM File WHERE id = $1;"
+func (db *Database) DeleteFile(sessionKey, fileID string) error {
+	if _, err := db.GetFile(sessionKey, fileID); err != nil {
+		return err
+	}
 
-	rows, err := db.handle.Query(sql, fileID)
+	sql := "DELETE FROM File WHERE id = $1 AND session = $2;"
+
+	rows, err := db.handle.Query(sql, fileID, sessionKey)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	return nil
+}
+
+func (db *Database) GetFile(sessionKey, fileID string) (string, error) {
+	var rows *sql.Rows
+	var err error
+
+	if sessionKey == "" {
+		sql := "SELECT filename FROM File WHERE id = $1;"
+		rows, err = db.handle.Query(sql, fileID)
+	} else {
+		sql := "SELECT filename FROM File WHERE id = $1 AND session = $2;"
+		rows, err = db.handle.Query(sql, fileID, sessionKey)
+	}
+
 	if err != nil {
 		return "", err
 	}

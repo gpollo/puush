@@ -42,6 +42,13 @@ function fetch_file() {
     do_curl -X GET -O -J -R "$url"
 }
 
+function delete_file() {
+    local session_key="$1"
+    local file_url="$2"
+
+    do_curl -X DELETE --cookie "SESSION_KEY=$session_key" "$file_url"
+}
+
 function list_files() {
     local session_key="$1"
 
@@ -110,6 +117,44 @@ function test_upload_file_with_invalid_session_key() {
         exit 1
     fi
     log_success "failed to upload file '$file_name'"
+}
+
+function test_delete_and_try_fetch_file() {
+    local session_key="$1"
+    local file_url="$2"
+
+    log_test "deleting file at '$file_url'"
+    if ! delete_file "$session_key" "$file_url"; then
+        log_error "failed to delete file at '$file_url'"
+        exit 1
+    fi
+    log_success "deleted file at '$file_url'"
+
+    log_test "fetching deleted file at '$file_url'"
+    if fetch_file "$file_url"; then
+        log_error "fetched deleted file at '$file_url'"
+        exit 1
+    fi
+    log_success "failed to fetch deleted file at '$file_url'"
+}
+
+function test_delete_file_with_invalid_session_key() {
+    local session_key="$1"
+    local file_url="$2"
+
+    log_test "deleting file at '$file_url' with invalid session key"
+    if delete_file "$session_key" "$file_url"; then
+        log_error "deleted file at '$file_url'"
+        exit 1
+    fi
+    log_success "failed to delete file at '$file_url'"
+
+    log_test "fetching file at '$file_url'"
+    if ! fetch_file "$file_url"; then
+        log_success "failed to fetch file at '$file_url'"
+        exit 1
+    fi
+    log_error "fetched file at '$file_url'"
 }
 
 function test_list_files() {
@@ -199,8 +244,12 @@ function run_tests() {
     test_check_file_data_in_file_list "$file_list" 1 "$file_id_2" "$file_name_2"
     test_check_file_data_in_file_list "$file_list" 2 "$file_id_3" "$file_name_3"
 
+    test_delete_and_try_fetch_file "$session_key" "$file_url_1"
+    test_delete_and_try_fetch_file "$session_key" "$file_url_2"
+
     test_upload_file_with_invalid_session_key "invalid-session-key" "$file_name_1"
     test_list_file_with_invalid_session_key "invalid-session-key"
+    test_delete_file_with_invalid_session_key "invalid-session-key" "$file_name_3"
 
     popd > /dev/null
 }

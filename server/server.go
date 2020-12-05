@@ -156,33 +156,66 @@ func (s *Server) handleUpload() http.Handler {
 
 func (s *Server) handleFile() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.WriteHeader(400)
-			w.Write([]byte("Unsupported method"))
-			return
-		}
-
 		endpoint := r.URL.Path
 		extension := path.Ext(endpoint)
 		fileID := endpoint[1 : len(endpoint)-len(extension)]
-		filename, err := s.db.GetFile(fileID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			w.WriteHeader(500)
-			w.Write([]byte("Internal server error"))
-			return
-		}
 
-		if filename == "" {
-			w.WriteHeader(404)
-			w.Write([]byte("File not found"))
-			return
-		}
-		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", filename))
+		if r.Method == "GET" {
+			filename, err := s.db.GetFile("", fileID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
 
-		fullname := fmt.Sprintf("%s-%s", fileID, filename)
-		filepath := path.Join(s.root, fullname)
-		http.ServeFile(w, r, filepath)
+			if filename == "" {
+				w.WriteHeader(404)
+				w.Write([]byte("File not found"))
+				return
+			}
+			w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", filename))
+
+			fullname := fmt.Sprintf("%s-%s", fileID, filename)
+			filepath := path.Join(s.root, fullname)
+			http.ServeFile(w, r, filepath)
+		} else if r.Method == "DELETE" {
+			sessionCookie, _ := r.Cookie("SESSION_KEY")
+			sessionKey := sessionCookie.Value
+
+			filename, err := s.db.GetFile(sessionKey, fileID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
+
+			if filename == "" {
+				w.WriteHeader(404)
+				w.Write([]byte("File not found"))
+				return
+			}
+
+			if err = s.db.DeleteFile(sessionKey, fileID); err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
+
+			if err = s.deleteFile(fileID, filename); err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
+
+			w.WriteHeader(200)
+		} else {
+			w.WriteHeader(400)
+			w.Write([]byte("Unsupported method"))
+		}
 	})
 }
 
@@ -223,6 +256,19 @@ func (s *Server) saveFile(fileID, filename string, data io.Reader) error {
 	}
 
 	fmt.Printf("Written %d bytes into '%s'\n", written, fullname)
+
+	return nil
+}
+
+func (s *Server) deleteFile(fileID, filename string) error {
+	fullname := fmt.Sprintf("%s-%s", fileID, filename)
+	filepath := path.Join(s.root, fullname)
+
+	if err := os.Remove(filepath); err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted file '%s'\n", fullname)
 
 	return nil
 }

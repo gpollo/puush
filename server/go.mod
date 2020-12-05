@@ -1,6 +1,7 @@
 module puush/server
 
 require (
+	github.com/lib/pq v1.9.0 // indirect
 	puush/database v0.0.0
 )
 
