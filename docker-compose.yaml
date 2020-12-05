@@ -17,7 +17,8 @@ services:
           - puush-database
 
   puush:
-    image: gpol/puush:latest
+    image: local/puush:latest
+    build: ./
     container_name: puush
     restart: always
     depends_on:
