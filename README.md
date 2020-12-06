@@ -32,7 +32,7 @@ curl: Saved to filename 'main.go'
 
 ## Alias
 
-If you want a handy commands for puush-ing files and automatically put the returned URL in the
+If you want handy commands for puush-ing files and automatically put the returned URL in the
 clipboard, you can add these functions into your `~/.bashrc` or `~/.zshrc` (requires `xsel` and
 `jq`):
 
@@ -149,5 +149,4 @@ proxy_request_buffering off;
 ## TODOs
 
 * optional file expiration
-* view files owned by session
-* allow file deletion owned by session
+* delete entire session
