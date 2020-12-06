@@ -32,8 +32,9 @@ curl: Saved to filename 'main.go'
 
 ## Alias
 
-If you want a handy command for puush-ing files and automatically put the returned URL in the
-clipboard, you can add this alias into your `~/.bashrc` or `~/.zshrc` (requires `xsel`):
+If you want a handy commands for puush-ing files and automatically put the returned URL in the
+clipboard, you can add these functions into your `~/.bashrc` or `~/.zshrc` (requires `xsel` and
+`jq`):
 
 ```bash
 function puush() {
@@ -55,13 +56,29 @@ function puush() {
         echo "$fileurl"
     fi
 }
+
+function puushls() {
+    curl -X GET --fail --silent --show-error \
+        --cookie "SESSION_KEY=$PUUSH_API_KEY" \
+        "https://files.gpol.sh/api/list" | jq .
+}
+
+function puushrm() {
+    local fileid
+
+    for fileid in "$@"; do
+        curl -X DELETE --fail --silent --show-error \
+            --cookie "SESSION_KEY=$PUUSH_API_KEY" \
+            "https://files.gpol.sh/$fileid"
+    done
+}
 ```
 
-Then, you can upload a file using the following syntax:
+It gives the following commands:
 
-```bash
-$ puush path/to/file
-```
+* `puush PATH/TO/FILE` uploads and copies to clipboard if possible
+* `puushls` lists all your files in JSON format
+* `puushrm [ID]...` delete files using their IDs
 
 ## Deployment
 
