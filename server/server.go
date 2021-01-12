@@ -235,6 +235,28 @@ func (s *Server) handleList() http.Handler {
 			return
 		}
 
+		for i, file := range files {
+			filename, err := s.db.GetFile(sessionCookie.Value, file.Id)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
+
+			filepath := s.getFilePath(file.Id, filename)
+			filestats, err := os.Stat(filepath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+				w.WriteHeader(500)
+				w.Write([]byte("Internal server error"))
+				return
+			}
+
+			files[i].FileSizePretty = prettyFileSize(filestats.Size())
+			files[i].FileSize = filestats.Size()
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(files)
 	})
@@ -273,4 +295,19 @@ func (s *Server) deleteFile(fileID, filename string) error {
 func (s *Server) getFilePath(fileID, filename string) string {
 	fullname := fmt.Sprintf("%s-%s", fileID, filename)
 	return path.Join(s.root, fullname)
+}
+
+func prettyFileSize(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "kMGTPE"[exp])
 }

@@ -257,6 +257,9 @@ type UploadedFile struct {
 	Id    string `json:"id"`
 	Name  string `json:"name"`
 	Since string `json:"since"`
+	/* TODO: move these parameters elsewhere */
+	FileSizePretty string `json:"size-pretty"`
+	FileSize       int64  `json:"size"`
 }
 
 func (db *Database) ListFiles(sessionKey string) ([]UploadedFile, error) {
@@ -278,7 +281,7 @@ func (db *Database) ListFiles(sessionKey string) ([]UploadedFile, error) {
 			return []UploadedFile{}, err
 		}
 
-		file := UploadedFile{Id: id, Name: name, Since: since}
+		file := UploadedFile{Id: id, Name: name, Since: since, FileSizePretty: "", FileSize: 0}
 		files = append(files, file)
 	}
 
