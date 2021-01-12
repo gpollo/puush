@@ -176,8 +176,7 @@ func (s *Server) handleFile() http.Handler {
 			}
 			w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", filename))
 
-			fullname := fmt.Sprintf("%s-%s", fileID, filename)
-			filepath := path.Join(s.root, fullname)
+			filepath := s.getFilePath(fileID, filename)
 			http.ServeFile(w, r, filepath)
 		} else if r.Method == "DELETE" {
 			sessionCookie, _ := r.Cookie("SESSION_KEY")
@@ -242,8 +241,7 @@ func (s *Server) handleList() http.Handler {
 }
 
 func (s *Server) saveFile(fileID, filename string, data io.Reader) error {
-	fullname := fmt.Sprintf("%s-%s", fileID, filename)
-	filepath := path.Join(s.root, fullname)
+	filepath := s.getFilePath(fileID, filename)
 
 	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE, 0755)
 	if err != nil {
@@ -255,20 +253,24 @@ func (s *Server) saveFile(fileID, filename string, data io.Reader) error {
 		return err
 	}
 
-	fmt.Printf("Written %d bytes into '%s'\n", written, fullname)
+	fmt.Printf("Written %d bytes into '%s'\n", written, filepath)
 
 	return nil
 }
 
 func (s *Server) deleteFile(fileID, filename string) error {
-	fullname := fmt.Sprintf("%s-%s", fileID, filename)
-	filepath := path.Join(s.root, fullname)
+	filepath := s.getFilePath(fileID, filename)
 
 	if err := os.Remove(filepath); err != nil {
 		return err
 	}
 
-	fmt.Printf("Deleted file '%s'\n", fullname)
+	fmt.Printf("Deleted file '%s-%s'\n", filepath)
 
 	return nil
+}
+
+func (s *Server) getFilePath(fileID, filename string) string {
+	fullname := fmt.Sprintf("%s-%s", fileID, filename)
+	return path.Join(s.root, fullname)
 }
