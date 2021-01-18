@@ -51,6 +51,16 @@ func (s *Server) Serve() error {
 	return http.ListenAndServe(":8080", s.muxer)
 }
 
+func (s *Server) getUrl(r *http.Request) string {
+	proto := r.Header.Get("X-Forwarded-Proto")
+
+	if proto == "" {
+		proto = "http"
+	}
+
+	return proto + "://" + r.Host
+}
+
 func (s *Server) log(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(fmt.Sprintf("%s %s", r.Method, r.URL.Path))
@@ -218,6 +228,40 @@ func (s *Server) handleFile() http.Handler {
 	})
 }
 
+type UploadedFile struct {
+	Id             string `json:"id"`
+	Url            string `json:"url"`
+	Name           string `json:"name"`
+	Since          string `json:"since"`
+	FileSizePretty string `json:"size-pretty"`
+	FileSize       int64  `json:"size"`
+}
+
+func (s *Server) fillUploadedFiles(dbFiles []database.UploadedFile, url string) ([]UploadedFile, error) {
+	var files []UploadedFile
+
+	for _, dbFile := range dbFiles {
+		filepath := s.getFilePath(dbFile.Id, dbFile.Name)
+		filestats, err := os.Stat(filepath)
+		if err != nil {
+			return []UploadedFile{}, err
+		}
+
+		file := UploadedFile{
+			Id:             dbFile.Id,
+			Url:            url + "/" + dbFile.Id,
+			Name:           dbFile.Name,
+			Since:          dbFile.Since,
+			FileSizePretty: prettyFileSize(filestats.Size()),
+			FileSize:       filestats.Size(),
+		}
+
+		files = append(files, file)
+	}
+
+	return files, nil
+}
+
 func (s *Server) handleList() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -227,7 +271,7 @@ func (s *Server) handleList() http.Handler {
 		}
 
 		sessionCookie, _ := r.Cookie("SESSION_KEY")
-		files, err := s.db.ListFiles(sessionCookie.Value)
+		dbFiles, err := s.db.ListFiles(sessionCookie.Value)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			w.WriteHeader(500)
@@ -235,26 +279,12 @@ func (s *Server) handleList() http.Handler {
 			return
 		}
 
-		for i, file := range files {
-			filename, err := s.db.GetFile(sessionCookie.Value, file.Id)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-				w.WriteHeader(500)
-				w.Write([]byte("Internal server error"))
-				return
-			}
-
-			filepath := s.getFilePath(file.Id, filename)
-			filestats, err := os.Stat(filepath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-				w.WriteHeader(500)
-				w.Write([]byte("Internal server error"))
-				return
-			}
-
-			files[i].FileSizePretty = prettyFileSize(filestats.Size())
-			files[i].FileSize = filestats.Size()
+		files, err := s.fillUploadedFiles(dbFiles, s.getUrl(r))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			w.WriteHeader(500)
+			w.Write([]byte("Internal server error"))
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")

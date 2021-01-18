@@ -110,7 +110,7 @@ Let's assume that we want our service to be hosted on `files.example.com` using 
 location / {
     proxy_pass http://puush:8080/;
     proxy_set_header Host files.example.com;
-    proxy_set_header Forwarded https;
+    proxy_set_header X-Forwarded-Proto https;
     proxy_pass_request_headers on;
 }
 ```
