@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"puush/database"
-	"strings"
 )
 
 type Server struct {
@@ -52,13 +51,12 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) getUrl(r *http.Request) string {
-	proto := r.Header.Get("X-Forwarded-Proto")
-
-	if proto == "" {
-		proto = "http"
+	protocol := r.Header.Get("X-Forwarded-Proto")
+	if protocol == "" {
+		protocol = "http"
 	}
 
-	return proto + "://" + r.Host
+	return protocol + "://" + r.Host
 }
 
 func (s *Server) log(next http.Handler) http.Handler {
@@ -145,22 +143,13 @@ func (s *Server) handleUpload() http.Handler {
 			return
 		}
 
-		protocol := ""
-		for _, forwarded := range r.Header.Values("Forwarded") {
-			for _, values := range strings.Split(forwarded, ";") {
-				splitted := strings.Split(values, "=")
-				if len(splitted) != 2 {
-					continue
-				}
-
-				if splitted[0] == "proto" && (splitted[1] == "http" || splitted[1] == "https") {
-					protocol = fmt.Sprintf("%s://", splitted[1])
-				}
-			}
+		protocol := r.Header.Get("X-Forwarded-Proto")
+		if protocol == "" {
+			protocol = "http"
 		}
 
 		w.WriteHeader(200)
-		w.Write([]byte(fmt.Sprintf("%s%s/%s%s", protocol, r.Host, fileID, extension)))
+		w.Write([]byte(fmt.Sprintf("%s://%s/%s%s", protocol, r.Host, fileID, extension)))
 	})
 }
 
