@@ -37,15 +37,18 @@ clipboard, you can add these functions into your `~/.bashrc` or `~/.zshrc` (requ
 `jq`):
 
 ```bash
+PUUSH_SESSION_KEY=3a42f234-2466-4fbf-8a64-61393eb380ac
+PUUSH_SERVER=http://example.com
+
 function puush() {
     local filename="$1"
     local fileurl
 
     fileurl=$(
         curl -X POST --fail --silent --show-error \
-            --cookie "SESSION_KEY=3a42f234-2466-4fbf-8a64-61393eb380ac" \
+            --cookie "SESSION_KEY=${PUUSH_SESSION_KEY}" \
             --form "file=@$filename" \
-            http://example.com/api/upload
+            "${PUUSH_SERVER}/api/upload"
     )
 
     if [[ -n "$DISPLAY" ]]; then
@@ -59,8 +62,8 @@ function puush() {
 
 function puushls() {
     curl -X GET --fail --silent --show-error \
-        --cookie "SESSION_KEY=$PUUSH_API_KEY" \
-        "https://files.gpol.sh/api/list" | jq .
+        --cookie "SESSION_KEY=${PUUSH_API_KEY}" \
+        "${PUUSH_SERVER}/api/list" | jq .
 }
 
 function puushrm() {
@@ -68,8 +71,8 @@ function puushrm() {
 
     for fileid in "$@"; do
         curl -X DELETE --fail --silent --show-error \
-            --cookie "SESSION_KEY=$PUUSH_API_KEY" \
-            "https://files.gpol.sh/$fileid"
+            --cookie "SESSION_KEY=${PUUSH_API_KEY}" \
+            "${PUUSH_SERVER}/$fileid"
     done
 }
 ```
